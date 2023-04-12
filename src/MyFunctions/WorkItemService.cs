@@ -16,8 +16,6 @@ namespace MyFunctions {
 
         private readonly string ProjectName;
 
-        //string url = $"https://dev.azure.com/{orgName}/{projectName}/_apis/wit/workitems?api-version=6.0&$top=1000&$select=System.Id,System.WorkItemType,System.Title,Custom.Field.Name&$expand=Relations";
-
         public WorkItemService(
             string orgName,
             string projectName,
@@ -30,7 +28,7 @@ namespace MyFunctions {
 
         public async Task UpdateAllWorkItemDaysSinceCreationAsync() {
 
-             this.Log($"WorkItemService.UpdateWorkItems starting execution at {DateTime.Now}...");
+            this.Log($"WorkItemService.UpdateWorkItems starting execution at {DateTime.Now}...");
 
             string url = $"https://dev.azure.com/{this.OrgName}/{this.ProjectName}/_apis/wit/workitems?api-version=6.0&$top=1000&$select=System.Id,System.WorkItemType,System.Title,Custom.Field.Name&$expand=Relations";
             
