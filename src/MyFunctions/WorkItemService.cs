@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -16,6 +17,8 @@ namespace MyFunctions {
 
         private readonly string ProjectName;
 
+        private readonly HttpClient Client;
+
         public WorkItemService(
             string orgName,
             string projectName,
@@ -24,31 +27,26 @@ namespace MyFunctions {
             this.OrgName = orgName;
             this.ProjectName = projectName;
             this.PatToken = patToken;
+
+            this.Client = new HttpClient();
+            this.Client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Format("{0}:{1}", "", this.PatToken))));
+            this.Client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         }
 
         public async Task UpdateAllWorkItemDaysSinceCreationAsync() {
 
             this.Log($"WorkItemService.UpdateWorkItems starting execution at {DateTime.Now}...");
 
-            string url = $"https://dev.azure.com/{this.OrgName}/{this.ProjectName}/_apis/wit/workitems?api-version=6.0&$top=1000&$select=System.Id,System.WorkItemType,System.Title,Custom.Field.Name&$expand=Relations";
-            
-            // Create an HTTP client
-            using (var client = new HttpClient()) {
+            // Get the list of WorkItems that should be processed
+            var workItemIds = await this.GetWorkItemIdsAsync("Select [System.Id], [System.Title], [System.State], [System.CreatedDate] From WorkItems Where [System.WorkItemType] = 'Product Backlog Item' AND [State] <> 'Closed' AND [State] <> 'Removed' order by [System.Id]");
+            /*
+            workItemIds.ForEach(id => {
 
-                // Set the Authorization header with the PAT
-                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", Convert.ToBase64String(Encoding.ASCII.GetBytes(string.Format("{0}:{1}", "", this.PatToken))));
+                var workItem = this.GetWorkItemAsync(id);
 
-                // Set the Content-Type header
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
-                // Create a new HTTP request
-                HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, url);
 
-                // Send the HTTP request
-                HttpResponseMessage response = await client.SendAsync(request);
-
-                // Check if the response is successful
-                if (response.IsSuccessStatusCode) {
+            });
 
                     // Deserialize the response content
                     dynamic responseContent = JsonConvert.DeserializeObject(await response.Content.ReadAsStringAsync());
@@ -87,12 +85,55 @@ namespace MyFunctions {
                         // Log the response
                         this.Log($"Workitem {workItemId}: Custom field value updated from '{customFieldValue}' to 'New Value'");
                     }
-                }
-                else {
-                    // Log the response status code and reason phrase
-                    this.Log($"ERROR => Response status code: {response.StatusCode}, Reason: {response.ReasonPhrase}");
-                }
-            }
+            */
+        }
+
+        private async Task<List<int>> GetWorkItemIdsAsync(string query) {
+
+            // Send the HTTP request
+            string wiqlUrl = $"https://dev.azure.com/{this.OrgName}/{this.ProjectName}/_apis/wit/wiql?api-version=7.0";
+
+            // Setup the query for the API call
+            var body = new { query = query };
+
+            // Setup the request
+            var queryContent = new StringContent(body.ToString(), Encoding.UTF8, "application/json");
+
+            // Post the API call
+            var result = await this.Client.PostAsync(wiqlUrl, queryContent);
+
+            // Read the response
+            dynamic responseContent = JsonConvert.DeserializeObject(await result.Content.ReadAsStringAsync());
+
+            // Get the list of workitems from the response content
+            List<dynamic> workItems = responseContent.value.ToObject<List<dynamic>>();
+
+            // Strip the work item IDs out of the response and put into a list
+            var workItemIds = workItems.Select(w => (int)w.Id).ToList();
+
+            // Return the result
+            return workItemIds;
+        }
+
+        private async Task<List<int>> GetWorkItemAsync(int id) {
+
+            // Send the HTTP request
+            string url = $"https://dev.azure.com/{this.OrgName}/{this.ProjectName}/_apis/workitems/{id}?api-version=7.0";
+
+            // Post the API call
+            var result = await this.Client.GetAsync(url);
+
+            // Read the response
+            dynamic responseContent = JsonConvert.DeserializeObject(await result.Content.ReadAsStringAsync());
+
+            // Get the list of workitems from the response content
+            List<dynamic> workItems = responseContent.value.ToObject<List<dynamic>>();
+
+            // Strip the work item IDs out of the response and put into a list
+            var workItemIds = workItems.Select(w => (int)w.Id).ToList();
+
+            // Return the result
+            return workItemIds;
         }
 
         private void Log(string content) {

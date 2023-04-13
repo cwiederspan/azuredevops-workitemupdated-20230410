@@ -13,7 +13,7 @@ public class WorkItemServiceTests {
             throw new ApplicationException("The required environment variables are not set");
         }
 
-        var sut = new WorkItemService(orgName, projectName, patToken);
+        var sut = new WorkItemService2(orgName, projectName, patToken);
 
         await sut.UpdateAllWorkItemDaysSinceCreationAsync();
     }
