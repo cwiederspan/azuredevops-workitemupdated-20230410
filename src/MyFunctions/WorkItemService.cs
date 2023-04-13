@@ -1,21 +1,16 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace MyFunctions {
 
     public class WorkItemService {
-
         private readonly string PatToken;
-
         private readonly string OrgName;
-
         private readonly string ProjectName;
 
         public WorkItemService(
@@ -47,11 +42,8 @@ namespace MyFunctions {
                 // Update each work item with the DaysSinceCreation value
                 var updateTasks = result.workItems.Select(async wi => {
 
-                    // Get the ID
-                    var id = wi.id;
-
                     // Build the update URL
-                    string updateUrl = $"{baseUrl}/wit/workitems/{id}?api-version=7.0";
+                    string updateUrl = $"{baseUrl}/wit/workitems/{wi.id}?api-version=7.0";
 
                     // Get the work item details
                     string detailsUrl = $"{updateUrl}&$expand=all";
@@ -76,7 +68,7 @@ namespace MyFunctions {
                     var responseMessage = await client.PatchAsync(updateUrl, content);
 
                     if (!responseMessage.IsSuccessStatusCode) {
-                        throw new Exception($"Failed to update work item {id}: {responseMessage.ReasonPhrase}");
+                        throw new Exception($"Failed to update work item {wi.id}: {responseMessage.ReasonPhrase}");
                     }
                 }).ToList();
 
